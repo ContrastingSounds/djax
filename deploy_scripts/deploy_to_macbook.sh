@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# STUB_HUB INSTALL SCRIPT FOR LOCAL DEVELOPMENT (TESTED ON MAC ONLY)
+# DJAX INSTALL SCRIPT FOR LOCAL DEVELOPMENT (TESTED ON MAC ONLY)
 #
 # 1. Check Python version
 # 2. Check .env existence and content
@@ -63,7 +63,7 @@ fi
 
 if [ $DEFAULTS_FOUND = 1 ]; then
     echo "Exiting setup due to invalid .env file."
-    echo "Stub Hub requires a .env file with details for a default instance e.g."
+    echo "Djax requires a .env file with details for a default instance e.g."
     echo
     echo "LOOKER_INSTANCE=mycompany.looker.com"
     echo "LOOKER_CLIENT_ID=ZGyDH9skynnVF7bBqTkb"

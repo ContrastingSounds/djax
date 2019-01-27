@@ -58,8 +58,6 @@ def generate_dashboard_presentation(request):
                      f'/dashboard_presentations/generate_dashboard_presentation: {request.body}')
         return HttpResponse(status=204)
 
-    logger.debug(f'Action Body: {payload.body.keys()}')
-
     if 'type' not in payload.body:
         logger.error(f'POST Request received that does not conform to Action Hub protocol: {pformat(payload.body)}')
         return HttpResponse(status=204)
@@ -92,7 +90,7 @@ def generate_dashboard_presentation(request):
     if 'form_params' in payload.body:
         params = payload.body['form_params']
 
-        if instance.name == 'jwtestapi.ngrok.io':
+        if instance.name in ['jwtestapi.ngrok.io', 'localhost', 'self-signed.looker.com']:
             payload.email_destinations = ['jonathan.walls@looker.com']
             payload.email_subject = 'Test email subject'
             payload.email_body = 'Test email body'
@@ -102,7 +100,7 @@ def generate_dashboard_presentation(request):
             payload.email_body = params['email_body']
 
     if payload.content_type.lower() == 'dashboard':
-        generate_presentation_from_dashboard.delay(asdict(instance), asdict(payload))
+        generate_presentation_from_dashboard.delay(asdict(payload))
     else:
         logger.error('Request to generate dashboard presentation did not contain dashboard reference.')
         return HttpResponse(status=204)

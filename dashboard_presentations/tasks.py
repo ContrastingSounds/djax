@@ -54,7 +54,7 @@ class LookerPresentationTile:
 class LookerPresentationSlide:
     title: str = None
     layout: str = None
-    type: str = None
+    slide_type: str = None
     tiles: List[LookerPresentationTile] = field(default_factory=list)
     footnote: str = None
     slide_notes: str = None
@@ -154,7 +154,7 @@ def add_footnote_to_slide(pptx, slide_no, hyperlink_text, hyperlink_link=None):
 
 @shared_task
 # def generate_presentation_from_dashboard(instance: LookerInstanceRecord, payload: PresentationPayload) -> Optional[str]:
-def generate_presentation_from_dashboard(msg_instance: dict, msg_payload: dict) -> Optional[str]:
+def generate_presentation_from_dashboard(payload: dict) -> Optional[str]:
     """
     Generates a report in PowerPoint format, using all looks in a Space.
     1.  Use template associated with this url, if available
@@ -181,20 +181,21 @@ def generate_presentation_from_dashboard(msg_instance: dict, msg_payload: dict) 
         client_secret=settings.USER_SECRET,
     )
 
-    payload = PresentationPayload(
-        body=msg_payload['body'],
-        content_type=msg_payload['content_type'],
-        content_id=msg_payload['content_id'],
-        instance_name=msg_payload['instance_name'],
-        url=msg_payload['url'],
-        url_with_params=msg_payload['url_with_params'],
-        attachment_base64=msg_payload['attachment_base64'],
-        attachment_mimetype=msg_payload['attachment_mimetype'],
-        attachment_extension=msg_payload['attachment_extension'],
-        email_subject=msg_payload['email_subject'],
-        email_body=msg_payload['email_body'],
-        email_destinations=msg_payload['email_destinations'],
-    )
+    # payload = PresentationPayload(
+    #     body=msg_payload['body'],
+    #     content_type=msg_payload['content_type'],
+    #     content_id=msg_payload['content_id'],
+    #     instance_name=msg_payload['instance_name'],
+    #     url=msg_payload['url'],
+    #     url_with_params=msg_payload['url_with_params'],
+    #     attachment_base64=msg_payload['attachment_base64'],
+    #     attachment_mimetype=msg_payload['attachment_mimetype'],
+    #     attachment_extension=msg_payload['attachment_extension'],
+    #     email_subject=msg_payload['email_subject'],
+    #     email_body=msg_payload['email_body'],
+    #     email_destinations=msg_payload['email_destinations'],
+    # )
+    payload = PresentationPayload(**payload)
 
     parsed_url = urlparse(payload.url_with_params)
     dashboard_id = parsed_url.path.split('/')[2]
@@ -274,6 +275,7 @@ def generate_presentation_from_dashboard(msg_instance: dict, msg_payload: dict) 
 
     title_slide = LookerPresentationSlide(
         title=dashboard.title,
+        slide_type='Title',
         layout='Title Only'
     )
     presentation.slides.append(title_slide)
@@ -286,7 +288,7 @@ def generate_presentation_from_dashboard(msg_instance: dict, msg_payload: dict) 
         new_tile = convert_dashboard_tile_to_presentation_tile(raw_tile)
         if new_tile.body['vis_config']['type'] != 'single_value':
             new_slide = LookerPresentationSlide(
-                type='single',
+                slide_type='single',
                 tiles=[new_tile]
             )
             presentation.slides.append(new_slide)
@@ -299,7 +301,7 @@ def generate_presentation_from_dashboard(msg_instance: dict, msg_payload: dict) 
         elif len(tile_buffer) == 2:
             tile_buffer.append(new_tile)
             new_slide = LookerPresentationSlide(
-                type='multiple',
+                slide_type='multiple',
                 tiles=tile_buffer
             )
             presentation.slides.append(new_slide)
@@ -313,7 +315,7 @@ def generate_presentation_from_dashboard(msg_instance: dict, msg_payload: dict) 
             else:
                 tile_buffer = [new_tile]
                 new_slide = LookerPresentationSlide(
-                    type='multiple',
+                    slide_type='multiple',
                     tiles=tile_buffer
                 )
                 presentation.slides.append(new_slide)

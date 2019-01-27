@@ -46,9 +46,9 @@ def index(request):
     :param request:
     :return:
     """
-    instance = settings.DJAX_LOOKER_INSTANCE
-    protocol = settings.DJAX_INSTANCE_PROTOCOL
-    port = settings.DJAX_INSTANCE_API_PORT
+    instance = settings.INSTANCE
+    protocol = settings.INSTANCE_PROTOCOL
+    port = settings.INSTANCE_API_PORT
     looker_instance = f'{protocol}://{instance}:{port}/'
 
     the_list = deepcopy(asdict(mylist))

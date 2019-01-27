@@ -5,14 +5,6 @@ CELERY_ALWAYS_EAGER = True
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-DJAX_MAIN_TITLE = config('HUB_TITLE', default='Djax Action Hub')
-DJAX_HUB_INSTANCE = config('HUB_INSTANCE', default='localhost')
-DJAX_HUB_PROTOCOL = config('HUB_PROTOCOL', default='http')
-DJAX_HUB_PORT = config('HUB_PORT', default='8000')
-DJAX_LOOKER_INSTANCE = config('LOOKER_INSTANCE', default='localhost')
-DJAX_INSTANCE_PROTOCOL = config('HUB_PROTOCOL', default='http')
-DJAX_INSTANCE_API_PORT = config('HUB_API_PORT', default='19999')
-
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='jonathan.walls+dev_djax@looker.com')
 
 DATABASES = {

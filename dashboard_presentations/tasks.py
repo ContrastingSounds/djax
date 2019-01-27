@@ -173,17 +173,13 @@ def generate_presentation_from_dashboard(msg_instance: dict, msg_payload: dict) 
     :return: Some kind of reference to the resulting presentation file
     """
 
-    # TODO: convert dicts back into data classes.
-    instance = LookerInstance.objects.get(instance=msg_instance['name'])
-
-    # instance = LookerInstanceRecord(
-    #     id=looker_instance.id,
-    #     name=looker_instance.name,
-    #     display_name=looker_instance.display_name,
-    #     api_port=looker_instance.api_port,
-    #     client_id=looker_instance.client_id,
-    #     client_secret=looker_instance.client_secret,
-    # )
+    instance = LookerInstance(
+        name=settings.INSTANCE,
+        protocol=settings.INSTANCE_PROTOCOL,
+        api_port=settings.INSTANCE_API_PORT,
+        client_id=settings.USER_ID,
+        client_secret=settings.USER_SECRET,
+    )
 
     payload = PresentationPayload(
         body=msg_payload['body'],

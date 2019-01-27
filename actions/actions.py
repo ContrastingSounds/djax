@@ -7,9 +7,8 @@ from django.conf import settings
 
 @dataclass
 class LookerInstance:
-    id: int = None
     name: str = None
-    display_name: str = None
+    protocol: str = None
     api_port: int = 19999
     client_id: str = None
     client_secret: str = None
@@ -80,7 +79,7 @@ class ActionForm:
     params: List[ActionParameter] = field(default_factory=list)
 
 
-base_url = f'{settings.DJAX_HUB_PROTOCOL}://{settings.DJAX_HUB_INSTANCE}:{settings.DJAX_HUB_PORT}'
+base_url = f'{settings.HUB_PROTOCOL}://{settings.HUB_INSTANCE}:{settings.HUB_PORT}'
 actions_list = ActionList()
 
 ### DASHBOARD_PRESENTATIONS ######

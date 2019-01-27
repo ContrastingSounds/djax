@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+    <h1>Dashboard Presentation Action</h1>
+    <h4>Presentation Templates</h4>
+    {% for presentation_template in presentation_templates%}
+        <p>{{ presentation_template.presentation_file }} <em>({{ presentation_template.looker_instance }} – {{ presentation_template.created_at }})</em></p>
+    {% endfor %}
+    <h4>Report Output</h4>
+    {% for dashboard_presentation in dashboard_presentations %}
+        <p>{{ dashboard_presentation.presentation_file }} <em>({{ dashboard_presentation.looker_instance }} – {{ dashboard_presentation.created_at }})</em></p>
+    {% endfor %}
+{% endblock %}

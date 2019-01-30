@@ -1,6 +1,7 @@
 import ast
 import os
 import logging
+from copy import deepcopy
 from dataclasses import dataclass, field, asdict
 from typing import List, Optional
 from pprint import pformat
@@ -14,6 +15,12 @@ from sendgrid.helpers.mail import Mail, Email, Content, Attachment
 
 import lookerapi as looker
 
+import pickle
+import os.path
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+
 # from .models import PresentationTemplate, DashboardTemplate, DashboardPresentation
 from actions.actions import LookerInstance
 from .models import PresentationPayload
@@ -22,6 +29,14 @@ from djax.utils import get_client
 
 logger = logging.getLogger(__name__)
 
+MAX_TILES = 4
+
+GOOGLE_TOKEN = '/Users/looker/Documents/Github/djax/token.pickle'
+GOOGLE_API_SCOPES = [
+    'https://www.googleapis.com/auth/presentations.readonly',
+    'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/presentations'
+]
 
 @dataclass
 class LookerDashboardTile:
@@ -37,7 +52,7 @@ class LookerDashboard:
 @dataclass
 class LookerPresentationTile:
     title: str = None
-    subtitle: str = None
+    subtitle_text: str = None
     body: dict = None
     column: int = None
     row: int = None
@@ -74,7 +89,7 @@ class LookerPresentation:
 def convert_dashboard_tile_to_presentation_tile(element: dict) -> LookerPresentationTile:
     return LookerPresentationTile(
         title=element['title'],
-        subtitle=element['subtitle'],
+        subtitle_text=element['subtitle_text'],
         body=element['slide_params'],
         column=element['column'],
         row=element['row'],
@@ -82,74 +97,125 @@ def convert_dashboard_tile_to_presentation_tile(element: dict) -> LookerPresenta
         height=element['height']
     )
 
+def flush_tile_buffer_to_slide(tile_buffer: List[LookerPresentationTile]) -> Optional[LookerPresentationSlide]:
+    slide = LookerPresentationSlide(
+        title='KPIs Slide',
+        layout='Title Only',
+        slide_type='Single Vis',
+        tiles=deepcopy(tile_buffer),
+        footnote='Link to dashboard TBD',
+        slide_notes='Slide notes TBD'        
+    )
+    return slide
 
-def get_image_file(client, element, width, height):
-    logger.info('dashboard_presentations.tasks.get_image_file not yet implemented')
-    return
+def convert_presentation_tile_to_slide(tile: LookerPresentationTile) -> Optional[LookerPresentationSlide]:
+    slide = LookerPresentationSlide(
+        title=tile.title,
+        layout='Title Only',
+        slide_type='Single Vis',
+        tiles=[tile],
+        footnote='Link to dashboard TBD',
+        slide_notes='Slide notes TBD'        
+    )
+    return slide    
 
-    query_api = looker.QueryApi(client)
-    element_request = {
-        "body": element['slide_params'],
-        "result_format": 'png',
-        "image_width": width,
-        "image_height": height,
-        "_preload_content": False,
-        # "_request_timeout": 10,
+# def get_image_file(client, element, width, height):
+#     logger.info('dashboard_presentations.tasks.get_image_file not yet implemented')
+#     return
+
+#     query_api = looker.QueryApi(client)
+#     element_request = {
+#         "body": element['slide_params'],
+#         "result_format": 'png',
+#         "image_width": width,
+#         "image_height": height,
+#         "_preload_content": False,
+#         # "_request_timeout": 10,
+#     }
+
+#     image_file = os.path.join(settings.WORKING_DIR, f'{element["id"]}.png')
+#     try:
+#         image = query_api.run_inline_query(**element_request)
+
+#         try:
+#             os.makedirs(os.path.dirname(image_file), exist_ok=True)
+#             with open(image_file, 'wb') as temp_image_file:
+#                 temp_image_file.write(image.data)
+#         except Exception as e:
+#             logger.warning(f'Failed to save image for {element["id"]}: {element["title"]}\n{e}')
+#             image_file = None
+
+#     except Exception as e:
+#         logger.error(f'API call failed for {element["id"]}: {element["title"]}\n{pformat(element_request)}',
+#                      exc_info=True)
+#         image_file = None
+
+#     return image_file
+
+# def add_image_to_slide(pptx, slide_no, image_file, hyperlink_link=None,
+#                        x=IMAGE_X, y=IMAGE_Y, width=VIS_WIDTH_CM):
+#     logger.info('dashboard_presentations.tasks.add_image_to_slide not yet implemented')
+#     return
+
+#     x_emu = Cm(x)
+#     y_emu = Cm(y)
+#     width_emu = Cm(width)
+
+#     try:
+#         picture_shape = pptx.slides[slide_no].shapes.add_picture(image_file, x_emu, y_emu, width_emu)
+#         if hyperlink_link:
+#             picture_shape.click_action.hyperlink.address = hyperlink_link
+
+#     except Exception as e:
+#         logger.warning(f'Failed to add image to slide {e}')
+
+#     return 0
+
+
+# def add_footnote_to_slide(pptx, slide_no, hyperlink_text, hyperlink_link=None):
+#     logger.info('dashboard_presentations.tasks.add_footnote_to_slide not yet implemented')
+#     return
+
+#     text_box = pptx.slides[slide_no].shapes.add_textbox(Cm(FOOT_X), Cm(FOOT_Y),
+#                                                         width=Cm(FOOT_WIDTH), height=Cm(FOOT_HEIGHT))
+#     p = text_box.text_frame.paragraphs[0]
+#     run = p.add_run()
+#     run.text = hyperlink_text
+#     if hyperlink_link:
+#         run.hyperlink.address = hyperlink_link
+#     else:
+#         run.hyperlink.address = hyperlink_text
+
+def generate_google_slides_presentation(looker_presentation: LookerPresentation) -> Optional[str]:
+    creds = None
+    # The file token.pickle stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first
+    # time.
+    if os.path.exists(GOOGLE_TOKEN):
+        with open(GOOGLE_TOKEN, 'rb') as token:
+            creds = pickle.load(token)
+
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'Google Slides/gslides_credentials.json', SCOPES)
+            creds = flow.run_local_server()
+        # Save the credentials for the next run
+        with open('token.pickle', 'wb') as token:
+            pickle.dump(creds, token)
+
+    service = build('slides', 'v1', credentials=creds, cache_discovery=False)
+
+    body = {
+        'title': looker_presentation.name
     }
+    presentation = service.presentations().create(body=body).execute()
+    presentation_id = presentation.get('presentationId')
+    print(f'Created presentation with ID: {presentation_id}')
 
-    image_file = os.path.join(settings.WORKING_DIR, f'{element["id"]}.png')
-    try:
-        image = query_api.run_inline_query(**element_request)
-
-        try:
-            os.makedirs(os.path.dirname(image_file), exist_ok=True)
-            with open(image_file, 'wb') as temp_image_file:
-                temp_image_file.write(image.data)
-        except Exception as e:
-            logger.warning(f'Failed to save image for {element["id"]}: {element["title"]}\n{e}')
-            image_file = None
-
-    except Exception as e:
-        logger.error(f'API call failed for {element["id"]}: {element["title"]}\n{pformat(element_request)}',
-                     exc_info=True)
-        image_file = None
-
-    return image_file
-
-
-def add_image_to_slide(pptx, slide_no, image_file, hyperlink_link=None,
-                       x=IMAGE_X, y=IMAGE_Y, width=VIS_WIDTH_CM):
-    logger.info('dashboard_presentations.tasks.add_image_to_slide not yet implemented')
-    return
-
-    x_emu = Cm(x)
-    y_emu = Cm(y)
-    width_emu = Cm(width)
-
-    try:
-        picture_shape = pptx.slides[slide_no].shapes.add_picture(image_file, x_emu, y_emu, width_emu)
-        if hyperlink_link:
-            picture_shape.click_action.hyperlink.address = hyperlink_link
-
-    except Exception as e:
-        logger.warning(f'Failed to add image to slide {e}')
-
-    return 0
-
-
-def add_footnote_to_slide(pptx, slide_no, hyperlink_text, hyperlink_link=None):
-    logger.info('dashboard_presentations.tasks.add_footnote_to_slide not yet implemented')
-    return
-
-    text_box = pptx.slides[slide_no].shapes.add_textbox(Cm(FOOT_X), Cm(FOOT_Y),
-                                                        width=Cm(FOOT_WIDTH), height=Cm(FOOT_HEIGHT))
-    p = text_box.text_frame.paragraphs[0]
-    run = p.add_run()
-    run.text = hyperlink_text
-    if hyperlink_link:
-        run.hyperlink.address = hyperlink_link
-    else:
-        run.hyperlink.address = hyperlink_text
 
 
 @shared_task
@@ -173,6 +239,8 @@ def generate_presentation_from_dashboard(payload: dict) -> Optional[str]:
     :return: Some kind of reference to the resulting presentation file
     """
 
+    logger.info('generate_presentation_from_dashboard() called.')
+
     instance = LookerInstance(
         name=settings.INSTANCE,
         protocol=settings.INSTANCE_PROTOCOL,
@@ -181,20 +249,6 @@ def generate_presentation_from_dashboard(payload: dict) -> Optional[str]:
         client_secret=settings.USER_SECRET,
     )
 
-    # payload = PresentationPayload(
-    #     body=msg_payload['body'],
-    #     content_type=msg_payload['content_type'],
-    #     content_id=msg_payload['content_id'],
-    #     instance_name=msg_payload['instance_name'],
-    #     url=msg_payload['url'],
-    #     url_with_params=msg_payload['url_with_params'],
-    #     attachment_base64=msg_payload['attachment_base64'],
-    #     attachment_mimetype=msg_payload['attachment_mimetype'],
-    #     attachment_extension=msg_payload['attachment_extension'],
-    #     email_subject=msg_payload['email_subject'],
-    #     email_body=msg_payload['email_body'],
-    #     email_destinations=msg_payload['email_destinations'],
-    # )
     payload = PresentationPayload(**payload)
 
     parsed_url = urlparse(payload.url_with_params)
@@ -270,7 +324,7 @@ def generate_presentation_from_dashboard(payload: dict) -> Optional[str]:
 
     # Start building LookerPresentation object
     presentation = LookerPresentation(
-        name=dashboard.name
+        name=dashboard.title
     )
 
     title_slide = LookerPresentationSlide(
@@ -280,56 +334,45 @@ def generate_presentation_from_dashboard(payload: dict) -> Optional[str]:
     )
     presentation.slides.append(title_slide)
 
-    # Arrange elements for slides
-    slide_idx = 0
+    logger.info(f'dashboard_tile 0: {dashboard_tiles[0].keys()}')
+
     current_row = 0
     tile_buffer = []
     for raw_tile in dashboard_tiles:
         new_tile = convert_dashboard_tile_to_presentation_tile(raw_tile)
+
         if new_tile.body['vis_config']['type'] != 'single_value':
-            new_slide = LookerPresentationSlide(
-                slide_type='single',
-                tiles=[new_tile]
-            )
+            if tile_buffer:
+                new_slide = flush_tile_buffer_to_slide(tile_buffer)
+                presentation.slides.append(new_slide)
+                tile_buffer = []
+            new_slide = convert_presentation_tile_to_slide(new_tile)
             presentation.slides.append(new_slide)
-            slide_idx += 1
-            current_row = new_tile.row + 1
-
-        elif len(presentation.slides) - 1 == slide_idx:
-            tile_buffer.append(new_tile)
-
-        elif len(tile_buffer) == 2:
-            tile_buffer.append(new_tile)
-            new_slide = LookerPresentationSlide(
-                slide_type='multiple',
-                tiles=tile_buffer
-            )
-            presentation.slides.append(new_slide)
-            tile_buffer = []
-            slide_idx += 1
-            current_row = new_tile.row + 1
 
         else:
-            if new_tile.row == current_row:
-                tile_buffer.append(new_tile)
-            else:
-                tile_buffer = [new_tile]
-                new_slide = LookerPresentationSlide(
-                    slide_type='multiple',
-                    tiles=tile_buffer
-                )
+            if new_tile.row > current_row:
+                if tile_buffer:
+                    new_slide = flush_tile_buffer_to_slide(tile_buffer)
+                    presentation.slides.append(new_slide)
+                    tile_buffer = []
+
+            current_row = new_tile.row
+            tile_buffer.append(new_tile)
+            if len(tile_buffer) == MAX_TILES:
+                new_slide = flush_tile_buffer_to_slide(tile_buffer)
                 presentation.slides.append(new_slide)
-                slide_idx += 1
+                tile_buffer = []
 
     # For dev purposes, dump the presentation contents to the log
-    logger.info(f'presentation.name {presentation.name}:\n{presentation}')
     for idx, slide in enumerate(presentation.slides):
-        logger.info(f'slide {idx}: {slide}')
+        tiles = ':'.join([tile.title for tile in slide.tiles ])
+        logger.info(f'slide {idx}: {slide.title}: {tiles}')
 
-    # Save to file
+    # Create presentation file
+    generate_google_slides_presentation(presentation)
 
     # Register the generated slidedeck in the application database
 
     # Email the report to recipients
 
-    return presentation.name
+    return presentation

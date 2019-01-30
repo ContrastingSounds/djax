@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.conf import settings
 
-from actions.actions import ActionFormParameter, ActionForm
+from actions.actions import ActionFormParameter, ActionForm, LookerInstance
 from .models import PresentationPayload
 from .tasks import generate_presentation_from_dashboard
 
@@ -43,10 +43,10 @@ def generate_dashboard_presentation(request):
     :return:
     """
 
-    instance = LookerInstanceRecord()
+    instance = LookerInstance()
     payload = PresentationPayload()
 
-    logger.debug(f'{datetime.datetime.now()} generate_dashboard_presentation request received')
+    logger.info(f'{datetime.datetime.now()} generate_dashboard_presentation request received')
     logger.debug(f'Body: {request.body}')
 
     try:
@@ -141,4 +141,6 @@ def action_form(request):
         ]
     )
 
-    return JsonResponse(asdict(form))
+    parameter_list = asdict(form)['params'] 
+
+    return JsonResponse(parameter_list, safe=False)

@@ -28,16 +28,16 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 SECRET_KEY = config('HUB_SECRET_KEY', default='you-really-should-replace-this')
 
 INSTANCE = config('LOOKER_INSTANCE')
-INSTANCE_PROTOCOL = config('INSTANCE_PROTOCOL', default='http')
-INSTANCE_API_PORT = config('INSTANCE_API_PORT', default='19999')
+INSTANCE_PROTOCOL = config('INSTANCE_PROTOCOL', default='https')
+INSTANCE_API_PORT = config('INSTANCE_API_PORT', default='443')
 
 USER_ID = config('LOOKER_CLIENT_ID')
 USER_SECRET = config('LOOKER_CLIENT_SECRET')
 
 HUB_TITLE = config('HUB_TITLE', default='Djax Action Hub')
-HUB_INSTANCE = config('HUB_INSTANCE', default='localhost')
-HUB_PROTOCOL = config('HUB_PROTOCOL', default='http')
-HUB_PORT = config('HUB_PORT', default='8000')
+HUB_INSTANCE = config('HUB_INSTANCE', default='jwtest.ngrok.io')
+HUB_PROTOCOL = config('HUB_PROTOCOL', default='https')
+HUB_PORT = config('HUB_PORT', default='443')
 
 
 SENDGRID_API_KEY = config('SENDGRID_API_KEY')
@@ -164,6 +164,11 @@ LOGGING = {
             'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
         },
         'djax.celery': {
+            'formatter': 'verbose',
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'dashboard_presentations.tasks': {
             'formatter': 'verbose',
             'handlers': ['console'],
             'level': 'INFO',

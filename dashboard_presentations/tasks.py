@@ -18,6 +18,7 @@ import lookerapi as looker
 import pickle
 import os.path
 from googleapiclient.discovery import build
+from apiclient.http import MediaFileUpload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
@@ -119,57 +120,87 @@ def convert_presentation_tile_to_slide(tile: LookerPresentationTile) -> Optional
     )
     return slide    
 
-# def get_image_file(client, element, width, height):
-#     logger.info('dashboard_presentations.tasks.get_image_file not yet implemented')
-#     return
+def get_image_file(client, tile: LookerPresentationTile, width=960, height=540):
+    query_api = looker.QueryApi(client)
+    element_request = {
+        "body": tile.body,
+        "result_format": 'png',
+        "image_width": width,
+        "image_height": height,
+        "_preload_content": False,
+    }
 
-#     query_api = looker.QueryApi(client)
-#     element_request = {
-#         "body": element['slide_params'],
-#         "result_format": 'png',
-#         "image_width": width,
-#         "image_height": height,
-#         "_preload_content": False,
-#         # "_request_timeout": 10,
-#     }
+    image_file = os.path.join(settings.WORKING_DIR, f'{tile.title}.png')
+    try:
+        image = query_api.run_inline_query(**element_request)
 
-#     image_file = os.path.join(settings.WORKING_DIR, f'{element["id"]}.png')
-#     try:
-#         image = query_api.run_inline_query(**element_request)
+        try:
+            os.makedirs(os.path.dirname(image_file), exist_ok=True)
+            with open(image_file, 'wb') as temp_image_file:
+                temp_image_file.write(image.data)
+        except Exception as e:
+            logger.warning(f'Failed to save image for {tile.title}\n{e}')
+            image_file = None
 
-#         try:
-#             os.makedirs(os.path.dirname(image_file), exist_ok=True)
-#             with open(image_file, 'wb') as temp_image_file:
-#                 temp_image_file.write(image.data)
-#         except Exception as e:
-#             logger.warning(f'Failed to save image for {element["id"]}: {element["title"]}\n{e}')
-#             image_file = None
+    except Exception as e:
+        logger.error(f'API call failed for {tile.title}\n{pformat(element_request)}',
+                     exc_info=True)
+        image_file = None
 
-#     except Exception as e:
-#         logger.error(f'API call failed for {element["id"]}: {element["title"]}\n{pformat(element_request)}',
-#                      exc_info=True)
-#         image_file = None
+    logger.info(f'Image file generated: {image_file}')
+    return image_file
 
-#     return image_file
+def add_image_to_slide(presentation_id, slide_id, slides_service, creds, image_file,
+                       hyperlink_link=None, x=5, y=5, width=23):
+    
+    drive_service = build('drive', 'v3', credentials=creds, cache_discovery=False)
 
-# def add_image_to_slide(pptx, slide_no, image_file, hyperlink_link=None,
-#                        x=IMAGE_X, y=IMAGE_Y, width=VIS_WIDTH_CM):
-#     logger.info('dashboard_presentations.tasks.add_image_to_slide not yet implemented')
-#     return
+    file_metadata = {
+        'title': f'SlideImage{slide_id}.png'
+    }
+    media = MediaFileUpload(image_file,
+                            mimetype='image/png')
+    logger.info(f'object type: {drive_service.files()}')
+    logger.info(f'object dir: {dir(drive_service.files())}')
+    file = drive_service.files().create(body=file_metadata,
+                                        media_body=media,
+                                        fields='id').execute()
+    logger.info(f'Uploaded file: {file.get("id")}')
 
-#     x_emu = Cm(x)
-#     y_emu = Cm(y)
-#     width_emu = Cm(width)
+    img_url = f'{file.uri}&access_token={creds.access_token}'
+    logger.info(f'Image URL: {img_url}')
 
-#     try:
-#         picture_shape = pptx.slides[slide_no].shapes.add_picture(image_file, x_emu, y_emu, width_emu)
-#         if hyperlink_link:
-#             picture_shape.click_action.hyperlink.address = hyperlink_link
+    requests = [
+        {
+            'createImage': {
+                'url': img_url,
+                'elementProperties': {
+                    'pageObjectId': slide_id,
+                    'size': {
+                        'width': {
+                          'magnitude': 3000000,
+                          'unit': 'EMU'
+                        },
+                        'height': {
+                          'magnitude': 3000000,
+                          'unit': 'EMU'
+                        }
+                      },
+                      'transform': {
+                        'scaleX': 0.6807,
+                        'scaleY': 0.4585,
+                        'translateX': 6583050,
+                        'translateY': 1673950,
+                        'unit': 'EMU'
+                      }
+                }
+            }
+        },
+    ]
+    slides_service.presentations().batchUpdate(body={'requests': requests},
+            presentationId=presentation_id).execute()
 
-#     except Exception as e:
-#         logger.warning(f'Failed to add image to slide {e}')
-
-#     return 0
+    return file
 
 
 # def add_footnote_to_slide(pptx, slide_no, hyperlink_text, hyperlink_link=None):
@@ -186,7 +217,7 @@ def convert_presentation_tile_to_slide(tile: LookerPresentationTile) -> Optional
 #     else:
 #         run.hyperlink.address = hyperlink_text
 
-def generate_google_slides_presentation(looker_presentation: LookerPresentation) -> Optional[str]:
+def generate_google_slides_presentation(client, looker_presentation: LookerPresentation) -> Optional[str]:
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
@@ -207,14 +238,58 @@ def generate_google_slides_presentation(looker_presentation: LookerPresentation)
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
 
-    service = build('slides', 'v1', credentials=creds, cache_discovery=False)
+    slides_service = build('slides', 'v1', credentials=creds, cache_discovery=False)
 
     body = {
         'title': looker_presentation.name
     }
-    presentation = service.presentations().create(body=body).execute()
+    presentation = slides_service.presentations().create(body=body).execute()
     presentation_id = presentation.get('presentationId')
-    print(f'Created presentation with ID: {presentation_id}')
+    logger.info(f'Created presentation with ID: {presentation_id}')
+
+    for idx, slide in enumerate(looker_presentation.slides):
+        slide_id = f'SlideNumber{idx}'
+        title_id = f'Slide{idx}TitleField'
+        requests = [
+            {
+                'createSlide': {
+                    'objectId': slide_id,
+                    'insertionIndex': idx,
+                    'slideLayoutReference': {
+                        'predefinedLayout': 'TITLE_ONLY'
+                    },
+                    'placeholderIdMappings': [
+                        {
+                            'layoutPlaceholder': {
+                                'type': 'TITLE',
+                                'index': 0,
+                            },
+                            'objectId': title_id
+                        }
+                    ]
+                }
+            },
+            {
+                'insertText': {
+                    'objectId': title_id,
+                    'text': slide.title
+                }
+            }
+        ]
+
+        body = {
+            'requests': requests
+        }
+        response = slides_service.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body=body).execute()
+
+        if slide.tiles: #  == [5,4,3]
+            image_file = get_image_file(client, slide.tiles[0])
+            add_image_to_slide(presentation_id, slide_id, slides_service, creds, image_file)
+
+        create_slide_response = response.get('replies')[0].get('createSlide')
+        logger.info('Created slide with ID: {0}'.format(create_slide_response.get('objectId')))
 
 
 
@@ -369,7 +444,7 @@ def generate_presentation_from_dashboard(payload: dict) -> Optional[str]:
         logger.info(f'slide {idx}: {slide.title}: {tiles}')
 
     # Create presentation file
-    generate_google_slides_presentation(presentation)
+    generate_google_slides_presentation(client, presentation)
 
     # Register the generated slidedeck in the application database
 

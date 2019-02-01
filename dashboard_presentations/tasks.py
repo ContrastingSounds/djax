@@ -156,23 +156,30 @@ def add_image_to_slide(presentation_id, slide_id, slides_service, creds, image_f
     drive_service = build('drive', 'v3', credentials=creds, cache_discovery=False)
 
     file_metadata = {
-        'title': f'SlideImage{slide_id}.png'
+        'name': f'SlideImage{slide_id}.png'
     }
     media = MediaFileUpload(image_file,
                             mimetype='image/png')
-    logger.info(f'object type: {drive_service.files()}')
-    logger.info(f'object dir: {dir(drive_service.files())}')
     file = drive_service.files().create(body=file_metadata,
-                                        media_body=media,
-                                        fields='id').execute()
-    logger.info(f'Uploaded file: {file.get("id")}')
-
-    img_url = f'{file.uri}&access_token={creds.access_token}'
+                                        media_body=media
+                                        ).execute()
+    # img_url = f'https://drive.google.com/file/d/{file.get("id")}&access_token={creds.token}'
+    img_url = f'https://drive.google.com/file/d/{file.get("id")}'
     logger.info(f'Image URL: {img_url}')
+    logger.info(f'creds: {dir(creds)}')
+    logger.info(f'token: {creds.token}')
+    logger.info(f'files: {dir(file)}')
+    logger.info(f'files: {file.keys()}')
+
+    uploaded_file = drive_service.files().get(fileId=file.get("id"))
+    logger.info(f'uploaded_file: {uploaded_file}')
+    logger.info(f'uploaded_file: {dir(uploaded_file)}')
+    logger.info(f'uploaded_file: {uploaded_file.to_json()}')
 
     requests = [
         {
             'createImage': {
+                # 'url': 'https://www.betterbuys.com/wp-content/uploads/2015/07/Looker.png',
                 'url': img_url,
                 'elementProperties': {
                     'pageObjectId': slide_id,

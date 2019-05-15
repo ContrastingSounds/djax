@@ -453,8 +453,8 @@ def generate_presentation_from_dashboard(payload: dict) -> Optional[str]:
     # Create presentation file
     generate_google_slides_presentation(client, presentation)
 
-    # Register the generated slidedeck in the application database
+    # TODO: Register the generated slidedeck in the application database
 
-    # Email the report to recipients
+    # TODO: Email the report to recipients
 
     return presentation

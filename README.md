@@ -1,6 +1,10 @@
 # djax
 
+_WORK IN PROGRESS – Not yet a working example_
+
 Bare bones Django implementation of a Looker Action Hub.
+
+Includes example of converting Looker dashboard to a Google Slides presentation.
 
 
 ## Status and Support

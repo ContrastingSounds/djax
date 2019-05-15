@@ -14,7 +14,7 @@ Includes example of converting Looker dashboard to a Google Slides presentation.
 - Requires Redis to be installed and running
 
 ## Most important files 
-_(aside from learning a bit about the Django framework)_
+_(aside from having to learn a bit about the Django framework to understand the Action Hub web app)_
 
 | File               | Description |
 |--------------------|-------------|

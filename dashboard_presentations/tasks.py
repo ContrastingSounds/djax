@@ -88,6 +88,7 @@ class LookerPresentation:
 
 
 def convert_dashboard_tile_to_presentation_tile(element: dict) -> LookerPresentationTile:
+    """Take the API response and convert into a LookerPresentationTile object"""
     return LookerPresentationTile(
         title=element['title'],
         subtitle_text=element['subtitle_text'],
@@ -99,6 +100,7 @@ def convert_dashboard_tile_to_presentation_tile(element: dict) -> LookerPresenta
     )
 
 def flush_tile_buffer_to_slide(tile_buffer: List[LookerPresentationTile]) -> Optional[LookerPresentationSlide]:
+    """Take a list of KPI tile objects and convert into a LookerPresentationSlide object"""
     slide = LookerPresentationSlide(
         title='KPIs Slide',
         layout='Title Only',
@@ -110,6 +112,7 @@ def flush_tile_buffer_to_slide(tile_buffer: List[LookerPresentationTile]) -> Opt
     return slide
 
 def convert_presentation_tile_to_slide(tile: LookerPresentationTile) -> Optional[LookerPresentationSlide]:
+    """Take a single tile object and convert into a LookerPresentationSlide object"""
     slide = LookerPresentationSlide(
         title=tile.title,
         layout='Title Only',
@@ -121,6 +124,7 @@ def convert_presentation_tile_to_slide(tile: LookerPresentationTile) -> Optional
     return slide    
 
 def get_image_file(client, tile: LookerPresentationTile, width=960, height=540):
+    """By calling the Looker API, convert a tile object/definition into an actual .png image"""
     query_api = looker.QueryApi(client)
     element_request = {
         "body": tile.body,
@@ -152,7 +156,13 @@ def get_image_file(client, tile: LookerPresentationTile, width=960, height=540):
 
 def add_image_to_slide(presentation_id, slide_id, slides_service, creds, image_file,
                        hyperlink_link=None, x=5, y=5, width=23):
-    
+    """
+    Not yet working!!!
+    Intended to:
+    1. Take an image file for a given tile
+    2. Upload it to Google Drive using MediaFileUpload()
+    3. Add image to slide, using the Slide service batchUpdate() function
+    """
     drive_service = build('drive', 'v3', credentials=creds, cache_discovery=False)
 
     file_metadata = {

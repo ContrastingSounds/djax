@@ -21,6 +21,8 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
 ]
 
+DEFAULT_CONTEXT = {}
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.sendgrid.net'
 EMAIL_USE_TLS = True

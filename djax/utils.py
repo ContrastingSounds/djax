@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_client(instance: LookerInstance):
-    base_url = f'https://{instance.name}/api/3.0'
+    base_url = f'https://{instance.name}:19999/api/3.0'
     logger.info(f'base_url: {base_url}')
     logger.info(f'client_id: {instance.client_id}')
     logger.info(f'client_secret: {instance.client_secret}')

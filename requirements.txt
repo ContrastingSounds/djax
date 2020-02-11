@@ -1,5 +1,5 @@
 celery==4.2.1
-Django==2.1.5
+Django==2.2.10
 lookerapi==3.0.0
 google-api-python-client==1.7.8
 google-auth-oauthlib==0.3.0

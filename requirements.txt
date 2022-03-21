@@ -39,7 +39,7 @@ testpath==0.4.2
 tornado==5.1.1
 traitlets==4.3.2
 urllib3==1.23
-waitress==1.1.0
+waitress==2.1.1
 wcwidth==0.1.7
 webencodings==0.5.1
 widgetsnbextension==3.4.2

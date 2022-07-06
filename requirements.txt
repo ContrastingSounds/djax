@@ -3,7 +3,7 @@ Django==2.1.5
 lookerapi==3.0.0
 google-api-python-client==1.7.8
 google-auth-oauthlib==0.3.0
-lxml==4.2.4
+lxml==4.9.1
 MarkupSafe==1.0
 matplotlib==3.0.0
 mistune==0.8.4
